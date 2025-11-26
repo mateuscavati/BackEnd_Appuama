@@ -22,8 +22,11 @@ COPY . .
 # Compila TypeScript
 RUN npm run build
 
+# Docker cache busting comment - please ignore (2025-11-20-1)
+
+
 # Expõe porta 3000
 EXPOSE 3000
 
 # Comando para rodar a aplicação
-CMD ["npm", "run", "start:prod:with-test"]
+CMD ["npm", "run", "start:prod"]

@@ -1,18 +1,22 @@
-import { Controller, Request, Post, UseGuards, Body } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() body) {
-    const user = await this.authService.validateUser(body.email, body.password);
-    if (!user) {
-      // In a real app, you'd throw an UnauthorizedException
-      return { statusCode: 401, message: 'Unauthorized' };
+  async login(@Body() loginDto: LoginDto) {
+    try {
+      const user = await this.authService.validateUser(loginDto.email, loginDto.pass);
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      return this.authService.login(user);
+    } catch (e) {
+      console.error('Error during login:', e);
+      throw e;
     }
-    return this.authService.login(user);
   }
 }

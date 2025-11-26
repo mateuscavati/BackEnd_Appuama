@@ -1,54 +1,79 @@
-import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-
-    return this.prisma.user.create({
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(createUserDto.senhaHash, salt);
+    return this.prisma.usuario.create({
       data: {
         ...createUserDto,
-        password: hashedPassword,
+        senhaHash: hashedPassword,
       },
     });
   }
 
-  async findOneByEmail(email: string) {
-    return this.prisma.user.findUnique({
+  findAll() {
+    return this.prisma.usuario.findMany({
+        select: {
+            id: true,
+            nomeCompleto: true,
+            email: true,
+            matricula: true,
+            posicaoEquipe: true,
+            isAdmin: true,
+            isAprovado: true,
+        }
+    });
+  }
+
+  async findOne(id: number) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nomeCompleto: true,
+        email: true,
+        matricula: true,
+        posicaoEquipe: true,
+        isAdmin: true,
+        isAprovado: true,
+    }
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+  
+  async findByEmail(email: string) {
+    const user = await this.prisma.usuario.findUnique({
       where: { email },
     });
+    if (!user) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+    return user;
   }
 
-  async findMe(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (user) {
-      const { password, ...result } = user;
-      return result;
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    if (updateUserDto.senhaHash) {
+        const salt = await bcrypt.genSalt();
+        updateUserDto.senhaHash = await bcrypt.hash(updateUserDto.senhaHash, salt);
     }
-    return null;
-  }
-
-  async updateMe(userId: number, updateUserDto: UpdateUserDto) {
-    if (updateUserDto.password) {
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
-    }
-    return this.prisma.user.update({
-      where: { id: userId },
+    return this.prisma.usuario.update({
+      where: { id },
       data: updateUserDto,
     });
   }
 
-  async deleteMe(userId: number) {
-    return this.prisma.user.delete({
-      where: { id: userId },
-    });
+  remove(id: number) {
+    return this.prisma.usuario.delete({ where: { id } });
   }
 }
