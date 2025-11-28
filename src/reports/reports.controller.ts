@@ -8,6 +8,8 @@ import {
   Delete,
   UseGuards,
   ParseIntPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -27,6 +29,17 @@ export class ReportsController {
   @Get()
   findAll() {
     return this.reportsService.findAll();
+  }
+
+  @Get('last') // New endpoint - moved before :id
+  @HttpCode(HttpStatus.OK) // Default to 200 OK
+  async findLastReport() {
+    const report = await this.reportsService.findLastReport();
+    if (!report) {
+      // If no report is found, return 204 No Content
+      return null;
+    }
+    return report;
   }
 
   @Get(':id')

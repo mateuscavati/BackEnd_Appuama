@@ -46,6 +46,7 @@ export class BalanceController {
 
   @Get('last/:carroId')
   async findLastByCarroId(@Param('carroId', ParseIntPipe) carroId: number) {
-    return this.balanceService.findLastByCarroId(carroId);
+    const lastBalance = await this.balanceService.findLastByCarroId(carroId);
+    return lastBalance || {};
   }
 }

@@ -2,86 +2,124 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
-import { Prisma } from '@prisma/client'; // Import Prisma
+import { Prisma } from '@prisma/client';
+
+// Helper function to convert to Decimal or null
+function toDecimalOrNull(value: number | undefined | null): Prisma.Decimal | null {
+  if (value === null || value === undefined || value === 0) {
+    return null;
+  }
+  return new Prisma.Decimal(value);
+}
+
+// Helper function to convert to number or 0
+function toNumberOrZero(value: number | undefined | null): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  return value;
+}
+
+// Helper function to convert Prisma.Decimal fields to numbers
+function convertDecimalFieldsToNumbers(report: any) {
+  const fields = [
+    'distanciaPercorrida',
+    'pressaoDEAntes', 'pressaoDEDepois', 'desgasteDEAntes', 'desgasteDEDepois',
+    'pressaoDDAntes', 'pressaoDDDepois', 'desgasteDDAntes', 'desgasteDDDepois',
+    'pressaoTEAntes', 'pressaoTEDepois', 'desgasteTEAntes', 'desgasteTEDepois',
+    'pressaoTDAntes', 'pressaoTDDepois', 'desgasteTDAntes', 'desgasteTDDepois',
+    'tamanhoMolaDE', 'tamanhoMolaDD', 'tamanhoMolaTE', 'tamanhoMolaTD',
+    'balanceFrontPercentage', 'balanceRearPercentage',
+    'balanceLeftPercentage', 'balanceRightPercentage',
+  ];
+  for (const field of fields) {
+    if (report[field] instanceof Prisma.Decimal) {
+      report[field] = Number(report[field]);
+    } else if (report[field] === null) {
+      report[field] = 0; // Default to 0 for null numeric fields
+    }
+  }
+  return report;
+}
 
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createReportDto: CreateReportDto) { // Make it async
-    console.log('ReportsService: Received createReportDto:', createReportDto); // Log incoming DTO
+  async create(createReportDto: CreateReportDto) {
+    console.log('ReportsService: Received createReportDto:', createReportDto);
 
     const {
       carroId,
       usuarioId,
       balanceamentoId,
-      checklistItems, // Destructure checklistItems
-      dataTeste, // Destructure date/time fields
+      checklistItems,
+      dataTeste,
       horaInicio,
       horaFim,
-      distanciaPercorrida, // Destructure numeric fields for Decimal conversion
+      distanciaPercorrida,
       pressaoDEAntes, pressaoDEDepois, desgasteDEAntes, desgasteDEDepois,
       pressaoDDAntes, pressaoDDDepois, desgasteDDAntes, desgasteDDDepois,
       pressaoTEAntes, pressaoTEDepois, desgasteTEAntes, desgasteTEDepois,
-      pressaoTDAntes, pressaoTDDepois, desgasteTDAntes, desgasteTDDepois, // Add these
+      pressaoTDAntes, pressaoTDDepois, desgasteTDAntes, desgasteTDDepois,
       tamanhoMolaDE, tamanhoMolaDD, tamanhoMolaTE, tamanhoMolaTD,
-      errosMecanicos, // Destructure
-      errosHumanos,   // Destructure
-      observacoesPiloto, // Destructure
-      balanceFrontPercentage, // Destructure
-      balanceRearPercentage,  // Destructure
-      balanceLeftPercentage,  // Destructure
-      balanceRightPercentage, // Destructure
+      errosMecanicos,
+      errosHumanos,
+      observacoesPiloto,
+      balanceFrontPercentage,
+      balanceRearPercentage,
+      balanceLeftPercentage,
+      balanceRightPercentage,
     } = createReportDto;
 
     const dataToCreate: Prisma.TesteReportCreateInput = {
       carro: { connect: { id: carroId } },
       usuario: { connect: { id: usuarioId } },
-      balanceamento: balanceamentoId ? { connect: { id: balanceamentoId } } : undefined, // Optional relation
+      balanceamento: balanceamentoId ? { connect: { id: balanceamentoId } } : undefined,
 
-      pilotoNome: createReportDto.pilotoNome, // Explicitly map
-      tipoSessao: createReportDto.tipoSessao, // Explicitly map
-      tempoTotal: createReportDto.tempoTotal, // Explicitly map
+      pilotoNome: createReportDto.pilotoNome,
+      tipoSessao: createReportDto.tipoSessao,
+      tempoTotal: createReportDto.tempoTotal,
 
       dataTeste: dataTeste ? new Date(dataTeste) : undefined,
       horaInicio: horaInicio ? new Date(horaInicio) : undefined,
       horaFim: horaFim ? new Date(horaFim) : undefined,
 
-      distanciaPercorrida: distanciaPercorrida !== undefined ? new Prisma.Decimal(distanciaPercorrida) : null,
+      distanciaPercorrida: toDecimalOrNull(distanciaPercorrida),
       
-      errosMecanicos: errosMecanicos !== undefined ? errosMecanicos : 0, // Explicitly handle, ensure 0 if undefined
-      errosHumanos: errosHumanos !== undefined ? errosHumanos : 0,     // Explicitly handle, ensure 0 if undefined
-      observacoesPiloto: observacoesPiloto !== undefined ? observacoesPiloto : null, // Explicitly handle string
+      errosMecanicos: toNumberOrZero(errosMecanicos),
+      errosHumanos: toNumberOrZero(errosHumanos),
+      observacoesPiloto: observacoesPiloto !== undefined ? observacoesPiloto : null,
       
-      pressaoDEAntes: pressaoDEAntes !== undefined ? new Prisma.Decimal(pressaoDEAntes) : null,
-      pressaoDEDepois: pressaoDEDepois !== undefined ? new Prisma.Decimal(pressaoDEDepois) : null,
-      desgasteDEAntes: desgasteDEAntes !== undefined ? new Prisma.Decimal(desgasteDEAntes) : null,
-      desgasteDEDepois: desgasteDEDepois !== undefined ? new Prisma.Decimal(desgasteDEDepois) : null,
+      pressaoDEAntes: toDecimalOrNull(pressaoDEAntes),
+      pressaoDEDepois: toDecimalOrNull(pressaoDEDepois),
+      desgasteDEAntes: toDecimalOrNull(desgasteDEAntes),
+      desgasteDEDepois: toDecimalOrNull(desgasteDEDepois),
 
-      pressaoDDAntes: pressaoDDAntes !== undefined ? new Prisma.Decimal(pressaoDDAntes) : null,
-      pressaoDDDepois: pressaoDDDepois !== undefined ? new Prisma.Decimal(pressaoDDDepois) : null,
-      desgasteDDAntes: desgasteDDAntes !== undefined ? new Prisma.Decimal(desgasteDDAntes) : null,
-      desgasteDDDepois: desgasteDDDepois !== undefined ? new Prisma.Decimal(desgasteDDDepois) : null,
+      pressaoDDAntes: toDecimalOrNull(pressaoDDAntes),
+      pressaoDDDepois: toDecimalOrNull(pressaoDDDepois),
+      desgasteDDAntes: toDecimalOrNull(desgasteDDAntes),
+      desgasteDDDepois: toDecimalOrNull(desgasteDDDepois),
 
-      pressaoTEAntes: pressaoTEAntes !== undefined ? new Prisma.Decimal(pressaoTEAntes) : null,
-      pressaoTEDepois: pressaoTEDepois !== undefined ? new Prisma.Decimal(pressaoTEDepois) : null,
-      desgasteTEAntes: desgasteTEAntes !== undefined ? new Prisma.Decimal(desgasteTEAntes) : null,
-      desgasteTEDepois: desgasteTEDepois !== undefined ? new Prisma.Decimal(desgasteTEDepois) : null,
+      pressaoTEAntes: toDecimalOrNull(pressaoTEAntes),
+      pressaoTEDepois: toDecimalOrNull(pressaoTEDepois),
+      desgasteTEAntes: toDecimalOrNull(desgasteTEAntes),
+      desgasteTEDepois: toDecimalOrNull(desgasteTEDepois),
 
-      pressaoTDAntes: pressaoTDAntes !== undefined ? new Prisma.Decimal(pressaoTDAntes) : null,
-      pressaoTDDepois: pressaoTDDepois !== undefined ? new Prisma.Decimal(pressaoTDDepois) : null,
-      desgasteTDAntes: desgasteTDAntes !== undefined ? new Prisma.Decimal(desgasteTDAntes) : null,
-      desgasteTDDepois: desgasteTDDepois !== undefined ? new Prisma.Decimal(desgasteTDDepois) : null,
+      pressaoTDAntes: toDecimalOrNull(pressaoTDAntes),
+      pressaoTDDepois: toDecimalOrNull(pressaoTDDepois),
+      desgasteTDAntes: toDecimalOrNull(desgasteTDAntes),
+      desgasteTDDepois: toDecimalOrNull(desgasteTDDepois),
 
-      tamanhoMolaDE: tamanhoMolaDE !== undefined ? new Prisma.Decimal(tamanhoMolaDE) : null,
-      tamanhoMolaDD: tamanhoMolaDD !== undefined ? new Prisma.Decimal(tamanhoMolaDD) : null,
-      tamanhoMolaTE: tamanhoMolaTE !== undefined ? new Prisma.Decimal(tamanhoMolaTE) : null,
-      tamanhoMolaTD: tamanhoMolaTD !== undefined ? new Prisma.Decimal(tamanhoMolaTD) : null,
+      tamanhoMolaDE: toDecimalOrNull(tamanhoMolaDE),
+      tamanhoMolaDD: toDecimalOrNull(tamanhoMolaDD),
+      tamanhoMolaTE: toDecimalOrNull(tamanhoMolaTE),
+      tamanhoMolaTD: toDecimalOrNull(tamanhoMolaTD),
 
-      balanceFrontPercentage: balanceFrontPercentage !== undefined ? new Prisma.Decimal(balanceFrontPercentage) : null,
-      balanceRearPercentage: balanceRearPercentage !== undefined ? new Prisma.Decimal(balanceRearPercentage) : null,
-      balanceLeftPercentage: balanceLeftPercentage !== undefined ? new Prisma.Decimal(balanceLeftPercentage) : null,
-      balanceRightPercentage: balanceRightPercentage !== undefined ? new Prisma.Decimal(balanceRightPercentage) : null,
+      balanceFrontPercentage: toDecimalOrNull(balanceFrontPercentage),
+      balanceRearPercentage: toDecimalOrNull(balanceRearPercentage),
+      balanceLeftPercentage: toDecimalOrNull(balanceLeftPercentage),
+      balanceRightPercentage: toDecimalOrNull(balanceRightPercentage),
 
       checklistItems: {
         createMany: {
@@ -93,8 +131,14 @@ export class ReportsService {
       },
     };
 
-    console.log('ReportsService: Data to create:', dataToCreate); // Log data before Prisma call
-    return this.prisma.testeReport.create({ data: dataToCreate });
+    console.log('ReportsService: Data to create:', dataToCreate);
+    try {
+      const createdReport = await this.prisma.testeReport.create({ data: dataToCreate });
+      return convertDecimalFieldsToNumbers(createdReport);
+    } catch (error) {
+      console.error('ReportsService: Error creating report:', error);
+      throw error; // Re-throw the error so NestJS can handle it as a 500
+    }
   }
 
   findAll() {
@@ -106,32 +150,36 @@ export class ReportsService {
     if (!report) {
       throw new NotFoundException(`Report with ID ${id} not found`);
     }
-    return report;
+    return convertDecimalFieldsToNumbers(report);
   }
 
-  async update(id: number, updateReportDto: UpdateReportDto) { // Make it async
+  async update(id: number, updateReportDto: UpdateReportDto) {
     const {
       carroId,
       usuarioId,
       balanceamentoId,
-      checklistItems, // Destructure checklistItems
-      dataTeste, // Destructure date/time fields
+      checklistItems,
+      dataTeste,
       horaInicio,
       horaFim,
-      distanciaPercorrida, // Destructure numeric fields for Decimal conversion
+      distanciaPercorrida,
       pressaoDEAntes, pressaoDEDepois, desgasteDEAntes, desgasteDEDepois,
       pressaoDDAntes, pressaoDDDepois, desgasteDDAntes, desgasteDDDepois,
       pressaoTEAntes, pressaoTEDepois, desgasteTEAntes, desgasteTEDepois,
-      tamanhoMolaDD, tamanhoMolaTE, tamanhoMolaTD,
-      balanceFrontPercentage, // Destructure
-      balanceRearPercentage,  // Destructure
-      balanceLeftPercentage,  // Destructure
-      balanceRightPercentage, // Destructure
-      ...rest // Collect other fields
+      pressaoTDAntes, pressaoTDDepois, desgasteTDAntes, desgasteTDDepois,
+      tamanhoMolaDE, tamanhoMolaDD, tamanhoMolaTE, tamanhoMolaTD,
+      errosMecanicos,
+      errosHumanos,
+      observacoesPiloto,
+      balanceFrontPercentage,
+      balanceRearPercentage,
+      balanceLeftPercentage,
+      balanceRightPercentage,
+      ...rest
     } = updateReportDto;
 
     const dataToUpdate: Prisma.TesteReportUpdateInput = {
-      ...rest, // Spread remaining fields
+      ...rest,
     };
 
     if (carroId !== undefined) {
@@ -148,49 +196,46 @@ export class ReportsService {
     if (horaInicio !== undefined) dataToUpdate.horaInicio = horaInicio ? new Date(horaInicio) : null;
     if (horaFim !== undefined) dataToUpdate.horaFim = horaFim ? new Date(horaFim) : null;
 
-    if (updateReportDto.distanciaPercorrida !== undefined) dataToUpdate.distanciaPercorrida = updateReportDto.distanciaPercorrida ? new Prisma.Decimal(updateReportDto.distanciaPercorrida) : null;
+    if (distanciaPercorrida !== undefined) dataToUpdate.distanciaPercorrida = toDecimalOrNull(distanciaPercorrida);
     
-    // Explicitly handle balance percentage fields
-    if (updateReportDto.balanceFrontPercentage !== undefined) dataToUpdate.balanceFrontPercentage = updateReportDto.balanceFrontPercentage ? new Prisma.Decimal(updateReportDto.balanceFrontPercentage) : null;
-    if (updateReportDto.balanceRearPercentage !== undefined) dataToUpdate.balanceRearPercentage = updateReportDto.balanceRearPercentage ? new Prisma.Decimal(updateReportDto.balanceRearPercentage) : null;
-    if (updateReportDto.balanceLeftPercentage !== undefined) dataToUpdate.balanceLeftPercentage = updateReportDto.balanceLeftPercentage ? new Prisma.Decimal(updateReportDto.balanceLeftPercentage) : null;
-    if (updateReportDto.balanceRightPercentage !== undefined) dataToUpdate.balanceRightPercentage = updateReportDto.balanceRightPercentage ? new Prisma.Decimal(updateReportDto.balanceRightPercentage) : null;
+    if (errosMecanicos !== undefined) dataToUpdate.errosMecanicos = toNumberOrZero(errosMecanicos);
+    if (errosHumanos !== undefined) dataToUpdate.errosHumanos = toNumberOrZero(errosHumanos);
+    if (observacoesPiloto !== undefined) dataToUpdate.observacoesPiloto = observacoesPiloto;
 
-    if (updateReportDto.pressaoDEAntes !== undefined) dataToUpdate.pressaoDEAntes = updateReportDto.pressaoDEAntes ? new Prisma.Decimal(updateReportDto.pressaoDEAntes) : null;
-    if (updateReportDto.pressaoDEDepois !== undefined) dataToUpdate.pressaoDEDepois = updateReportDto.pressaoDEDepois ? new Prisma.Decimal(updateReportDto.pressaoDEDepois) : null;
-    if (updateReportDto.desgasteDEAntes !== undefined) dataToUpdate.desgasteDEAntes = updateReportDto.desgasteDEAntes ? new Prisma.Decimal(updateReportDto.desgasteDEAntes) : null;
-    if (updateReportDto.desgasteDEDepois !== undefined) dataToUpdate.desgasteDEDepois = updateReportDto.desgasteDEDepois ? new Prisma.Decimal(updateReportDto.desgasteDEDepois) : null;
+    if (balanceFrontPercentage !== undefined) dataToUpdate.balanceFrontPercentage = toDecimalOrNull(balanceFrontPercentage);
+    if (balanceRearPercentage !== undefined) dataToUpdate.balanceRearPercentage = toDecimalOrNull(balanceRearPercentage);
+    if (balanceLeftPercentage !== undefined) dataToUpdate.balanceLeftPercentage = toDecimalOrNull(balanceLeftPercentage);
+    if (balanceRightPercentage !== undefined) dataToUpdate.balanceRightPercentage = toDecimalOrNull(balanceRightPercentage);
 
-    if (updateReportDto.pressaoDDAntes !== undefined) dataToUpdate.pressaoDDAntes = updateReportDto.pressaoDDAntes ? new Prisma.Decimal(updateReportDto.pressaoDDAntes) : null;
-    if (updateReportDto.pressaoDDDepois !== undefined) dataToUpdate.pressaoDDDepois = updateReportDto.pressaoDDDepois ? new Prisma.Decimal(updateReportDto.pressaoDDDepois) : null;
-    if (updateReportDto.desgasteDDAntes !== undefined) dataToUpdate.desgasteDDAntes = updateReportDto.desgasteDDAntes ? new Prisma.Decimal(updateReportDto.desgasteDDAntes) : null;
-    if (updateReportDto.desgasteDDDepois !== undefined) dataToUpdate.desgasteDDDepois = updateReportDto.desgasteDDDepois ? new Prisma.Decimal(updateReportDto.desgasteDDDepois) : null;
+    if (pressaoDEAntes !== undefined) dataToUpdate.pressaoDEAntes = toDecimalOrNull(pressaoDEAntes);
+    if (pressaoDEDepois !== undefined) dataToUpdate.pressaoDEDepois = toDecimalOrNull(pressaoDEDepois);
+    if (desgasteDEAntes !== undefined) dataToUpdate.desgasteDEAntes = toDecimalOrNull(desgasteDEAntes);
+    if (desgasteDEDepois !== undefined) dataToUpdate.desgasteDEDepois = toDecimalOrNull(desgasteDEDepois);
 
-    if (updateReportDto.pressaoTEAntes !== undefined) dataToUpdate.pressaoTEAntes = updateReportDto.pressaoTEAntes ? new Prisma.Decimal(updateReportDto.pressaoTEAntes) : null;
-    if (updateReportDto.pressaoTEDepois !== undefined) dataToUpdate.pressaoTEDepois = updateReportDto.pressaoTEDepois ? new Prisma.Decimal(updateReportDto.pressaoTEDepois) : null;
-    if (updateReportDto.desgasteTEAntes !== undefined) dataToUpdate.desgasteTEAntes = updateReportDto.desgasteTEAntes ? new Prisma.Decimal(updateReportDto.desgasteTEAntes) : null;
-    if (updateReportDto.desgasteTEDepois !== undefined) dataToUpdate.desgasteTEDepois = updateReportDto.desgasteTEDepois ? new Prisma.Decimal(updateReportDto.desgasteTEDepois) : null;
+    if (pressaoDDAntes !== undefined) dataToUpdate.pressaoDDAntes = toDecimalOrNull(pressaoDDAntes);
+    if (pressaoDDDepois !== undefined) dataToUpdate.pressaoDDDepois = toDecimalOrNull(pressaoDDDepois);
+    if (desgasteDDAntes !== undefined) dataToUpdate.desgasteDDAntes = toDecimalOrNull(desgasteDDAntes);
+    if (desgasteDDDepois !== undefined) dataToUpdate.desgasteDDDepois = toDecimalOrNull(desgasteDDDepois);
 
-    if (updateReportDto.pressaoTDAntes !== undefined) dataToUpdate.pressaoTDAntes = updateReportDto.pressaoTDAntes ? new Prisma.Decimal(updateReportDto.pressaoTDAntes) : null;
-    if (updateReportDto.pressaoTDDepois !== undefined) dataToUpdate.pressaoTDDepois = updateReportDto.pressaoTDDepois ? new Prisma.Decimal(updateReportDto.pressaoTDDepois) : null;
-    if (updateReportDto.desgasteTDAntes !== undefined) dataToUpdate.desgasteTDAntes = updateReportDto.desgasteTDAntes ? new Prisma.Decimal(updateReportDto.desgasteTDAntes) : null;
-    if (updateReportDto.desgasteTDDepois !== undefined) dataToUpdate.desgasteTDDepois = updateReportDto.desgasteTDDepois ? new Prisma.Decimal(updateReportDto.desgasteTDDepois) : null;
+    if (pressaoTEAntes !== undefined) dataToUpdate.pressaoTEAntes = toDecimalOrNull(pressaoTEAntes);
+    if (pressaoTEDepois !== undefined) dataToUpdate.pressaoTEDepois = toDecimalOrNull(pressaoTEDepois);
+    if (desgasteTEAntes !== undefined) dataToUpdate.desgasteTEAntes = toDecimalOrNull(desgasteTEAntes);
+    if (desgasteTEDepois !== undefined) dataToUpdate.desgasteTEDepois = toDecimalOrNull(desgasteTEDepois);
 
-    if (updateReportDto.tamanhoMolaDE !== undefined) dataToUpdate.tamanhoMolaDE = updateReportDto.tamanhoMolaDE ? new Prisma.Decimal(updateReportDto.tamanhoMolaDE) : null;
-    if (updateReportDto.tamanhoMolaDD !== undefined) dataToUpdate.tamanhoMolaDD = updateReportDto.tamanhoMolaDD ? new Prisma.Decimal(updateReportDto.tamanhoMolaDD) : null;
-    if (updateReportDto.tamanhoMolaTE !== undefined) dataToUpdate.tamanhoMolaTE = updateReportDto.tamanhoMolaTE ? new Prisma.Decimal(updateReportDto.tamanhoMolaTE) : null;
-    if (updateReportDto.tamanhoMolaTD !== undefined) dataToUpdate.tamanhoMolaTD = updateReportDto.tamanhoMolaTD ? new Prisma.Decimal(updateReportDto.tamanhoMolaTD) : null;
+    if (pressaoTDAntes !== undefined) dataToUpdate.pressaoTDAntes = toDecimalOrNull(pressaoTDAntes);
+    if (pressaoTDDepois !== undefined) dataToUpdate.pressaoTDDepois = toDecimalOrNull(pressaoTDDepois);
+    if (desgasteTDAntes !== undefined) dataToUpdate.desgasteTDAntes = toDecimalOrNull(desgasteTDAntes);
+    if (desgasteTDDepois !== undefined) dataToUpdate.desgasteTDDepois = toDecimalOrNull(desgasteTDDepois);
 
-    // Handle checklistItems update: this is more complex.
-    // For many-to-many, typically you would delete existing relations and then recreate them.
-    // For simplicity, let's assume if checklistItems is provided, we overwrite existing ones.
-    // Or, if not provided, existing ones remain unchanged.
+    if (tamanhoMolaDE !== undefined) dataToUpdate.tamanhoMolaDE = toDecimalOrNull(tamanhoMolaDE);
+    if (tamanhoMolaDD !== undefined) dataToUpdate.tamanhoMolaDD = toDecimalOrNull(tamanhoMolaDD);
+    if (tamanhoMolaTE !== undefined) dataToUpdate.tamanhoMolaTE = toDecimalOrNull(tamanhoMolaTE);
+    if (tamanhoMolaTD !== undefined) dataToUpdate.tamanhoMolaTD = toDecimalOrNull(tamanhoMolaTD);
+
     if (checklistItems !== undefined) {
-      // First, delete existing checklist items for this report
       await this.prisma.reportChecklistItem.deleteMany({
         where: { reportId: id },
       });
-      // Then, create new ones
       if (checklistItems.length > 0) {
         dataToUpdate.checklistItems = {
           createMany: {
@@ -216,8 +261,21 @@ export class ReportsService {
   async findByCarroId(carroId: number) {
     const reports = await this.prisma.testeReport.findMany({
       where: { carroId },
-      orderBy: { dataTeste: 'desc' }, // Order by most recent test date
+      orderBy: { dataTeste: 'desc' },
     });
-    return reports;
+    return reports.map(report => convertDecimalFieldsToNumbers(report));
+  }
+
+  async findLastReport() {
+    const report = await this.prisma.testeReport.findFirst({
+      orderBy: [
+        { dataTeste: 'desc' },
+        { horaFim: 'desc' }
+      ], // Order by date, then by end time
+    });
+    console.log('ReportsService: Before conversion - report:', report);
+    const convertedReport = report ? convertDecimalFieldsToNumbers(report) : null;
+    console.log('ReportsService: After conversion - convertedReport:', convertedReport);
+    return convertedReport;
   }
 }
