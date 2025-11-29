@@ -20,7 +20,7 @@ function toNumberOrZero(value: number | undefined | null): number {
   return value;
 }
 
-// Helper function to convert Prisma.Decimal fields to numbers
+// Helper function to convert Prisma.Decimal fields to numbers or default values
 function convertDecimalFieldsToNumbers(report: any) {
   const fields = [
     'distanciaPercorrida',
@@ -39,6 +39,23 @@ function convertDecimalFieldsToNumbers(report: any) {
       report[field] = 0; // Default to 0 for null numeric fields
     }
   }
+  return report;
+}
+
+// Helper function to convert Prisma.Decimal fields to numbers and include formatted checklist items
+function formatReportWithChecklist(report: any): any {
+  report = convertDecimalFieldsToNumbers(report); // First, convert decimal fields
+  if (report.checklistItems && Array.isArray(report.checklistItems)) {
+    report.checklistData = report.checklistItems.map(item => ({
+      id: item.checklistItem.id.toString(), // Convert number ID to string for frontend
+      category: item.checklistItem.area,
+      description: item.checklistItem.descricaoItem,
+      completed: item.status,
+    }));
+  } else {
+    report.checklistData = [];
+  }
+  delete report.checklistItems; // Remove the original Prisma relation for cleanliness
   return report;
 }
 
@@ -133,24 +150,51 @@ export class ReportsService {
 
     console.log('ReportsService: Data to create:', dataToCreate);
     try {
-      const createdReport = await this.prisma.testeReport.create({ data: dataToCreate });
-      return convertDecimalFieldsToNumbers(createdReport);
+      const createdReport = await this.prisma.testeReport.create({ 
+        data: dataToCreate,
+        include: {
+          checklistItems: {
+            include: {
+              checklistItem: true,
+            },
+          },
+        },
+      });
+      return formatReportWithChecklist(createdReport);
     } catch (error) {
       console.error('ReportsService: Error creating report:', error);
       throw error; // Re-throw the error so NestJS can handle it as a 500
     }
   }
 
-  findAll() {
-    return this.prisma.testeReport.findMany();
+  async findAll() {
+    const reports = await this.prisma.testeReport.findMany({
+      include: {
+        checklistItems: {
+          include: {
+            checklistItem: true,
+          },
+        },
+      },
+    });
+    return reports.map(report => formatReportWithChecklist(report));
   }
 
   async findOne(id: number) {
-    const report = await this.prisma.testeReport.findUnique({ where: { id } });
+    const report = await this.prisma.testeReport.findUnique({
+      where: { id },
+      include: {
+        checklistItems: {
+          include: {
+            checklistItem: true,
+          },
+        },
+      },
+    });
     if (!report) {
       throw new NotFoundException(`Report with ID ${id} not found`);
     }
-    return convertDecimalFieldsToNumbers(report);
+    return formatReportWithChecklist(report);
   }
 
   async update(id: number, updateReportDto: UpdateReportDto) {
@@ -248,10 +292,18 @@ export class ReportsService {
       }
     }
 
-    return this.prisma.testeReport.update({
+    const updatedReport = await this.prisma.testeReport.update({
       where: { id },
       data: dataToUpdate,
+      include: {
+        checklistItems: {
+          include: {
+            checklistItem: true,
+          },
+        },
+      },
     });
+    return formatReportWithChecklist(updatedReport);
   }
 
   remove(id: number) {
@@ -262,8 +314,15 @@ export class ReportsService {
     const reports = await this.prisma.testeReport.findMany({
       where: { carroId },
       orderBy: { dataTeste: 'desc' },
+      include: {
+        checklistItems: {
+          include: {
+            checklistItem: true,
+          },
+        },
+      },
     });
-    return reports.map(report => convertDecimalFieldsToNumbers(report));
+    return reports.map(report => formatReportWithChecklist(report));
   }
 
   async findLastReport() {
@@ -272,9 +331,16 @@ export class ReportsService {
         { dataTeste: 'desc' },
         { horaFim: 'desc' }
       ], // Order by date, then by end time
+      include: {
+        checklistItems: {
+          include: {
+            checklistItem: true,
+          },
+        },
+      },
     });
     console.log('ReportsService: Before conversion - report:', report);
-    const convertedReport = report ? convertDecimalFieldsToNumbers(report) : null;
+    const convertedReport = report ? formatReportWithChecklist(report) : null;
     console.log('ReportsService: After conversion - convertedReport:', convertedReport);
     return convertedReport;
   }

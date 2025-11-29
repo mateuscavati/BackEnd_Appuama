@@ -8,6 +8,7 @@ import { CarsModule } from './cars/cars.module';
 import { BalanceModule } from './balance/balance.module';
 import { ReportsModule } from './reports/reports.module';
 import { ChecklistItemsModule } from './checklist-items/checklist-items.module';
+import { CarChecklistStatusModule } from './car-checklist-status/car-checklist-status.module'; // Added
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ChecklistItemsModule } from './checklist-items/checklist-items.module';
     BalanceModule,
     ReportsModule,
     ChecklistItemsModule,
+    CarChecklistStatusModule,
   ],
   controllers: [AppController],
   providers: [AppService],
