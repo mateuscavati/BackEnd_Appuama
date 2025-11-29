@@ -8,6 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instala dependências
+RUN npm cache clean --force
 RUN npm install
 
 # Copia o schema do Prisma para gerar o client

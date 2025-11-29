@@ -37,7 +37,6 @@ model Carro {
   
   reports         TesteReport[]
   balanceamentos  Balanceamento[]
-  carChecklistStatus CarChecklistStatus[] // Add this line
 
   @@map("carro")
 }
@@ -117,7 +116,6 @@ model TesteReport {
   carro                   Carro               @relation(fields: [carroId], references: [id])
   usuario                 Usuario             @relation(fields: [usuarioId], references: [id])
   balanceamento           Balanceamento?      @relation(fields: [balanceamentoId], references: [id])
-  checklistItems          ReportChecklistItem[]
   
   @@map("teste_report")
 }
@@ -128,36 +126,6 @@ model ChecklistItem {
   area            String
   descricaoItem   String         @map("descricao_item")
 
-  reports         ReportChecklistItem[]
-  carChecklistStatus CarChecklistStatus[] // Add this line
-
   @@unique([area, descricaoItem]) // Não pode haver o mesmo item na mesma área
   @@map("checklist")
-}
-
-// 6. REPORT_CHECKLIST_ITEM (Tabela de ligação N:M)
-model ReportChecklistItem {
-  reportId          Int            @map("report_id")
-  checklistItemId   Int            @map("checklist_item_id")
-  status            Boolean        // TRUE se feito, FALSE se não feito
-  
-  report            TesteReport    @relation(fields: [reportId], references: [id])
-  checklistItem     ChecklistItem  @relation(fields: [checklistItemId], references: [id])
-
-  @@id([reportId, checklistItemId]) // Chave composta
-  @@map("report_checklist_item")
-}
-
-// 7. CAR_CHECKLIST_STATUS (Status atual do checklist por carro)
-model CarChecklistStatus {
-  id              Int            @id @default(autoincrement())
-  carroId         Int            @map("carro_id")
-  checklistItemId Int            @map("checklist_item_id")
-  isCompleted     Boolean        @default(false) @map("is_completed")
-
-  carro           Carro          @relation(fields: [carroId], references: [id])
-  checklistItem   ChecklistItem  @relation(fields: [checklistItemId], references: [id])
-
-  @@unique([carroId, checklistItemId]) // A car can only have one status for a specific checklist item
-  @@map("car_checklist_status")
 }

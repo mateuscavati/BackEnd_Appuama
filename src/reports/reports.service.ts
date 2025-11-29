@@ -2,7 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, TesteReport } from '@prisma/client';
+
+// Define a new interface for the formatted report
+export interface FormattedReport extends Omit<TesteReport, 'horaInicio' | 'horaFim'> {
+  horaInicio: string | null;
+  horaFim: string | null;
+}
 
 // Helper function to convert to Decimal or null
 function toDecimalOrNull(value: number | undefined | null): Prisma.Decimal | null {
@@ -42,32 +48,6 @@ function convertDecimalFieldsToNumbers(report: any) {
   return report;
 }
 
-// Helper function to convert Prisma.Decimal fields to numbers and include formatted checklist items
-function formatReportWithChecklist(report: any): any {
-  report = convertDecimalFieldsToNumbers(report); // First, convert decimal fields
-
-  // Format horaInicio and horaFim to HH:MM strings
-  if (report.horaInicio instanceof Date) {
-    report.horaInicio = report.horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
-  }
-  if (report.horaFim instanceof Date) {
-    report.horaFim = report.horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
-  }
-
-  if (report.checklistItems && Array.isArray(report.checklistItems)) {
-    report.checklistData = report.checklistItems.map(item => ({
-      id: item.checklistItem.id.toString(), // Convert number ID to string for frontend
-      category: item.checklistItem.area,
-      description: item.checklistItem.descricaoItem,
-      completed: item.status,
-    }));
-  } else {
-    report.checklistData = [];
-  }
-  delete report.checklistItems; // Remove the original Prisma relation for cleanliness
-  return report;
-}
-
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -79,7 +59,6 @@ export class ReportsService {
       carroId,
       usuarioId,
       balanceamentoId,
-      checklistItems,
       dataTeste,
       horaInicio,
       horaFim,
@@ -146,64 +125,49 @@ export class ReportsService {
       balanceRearPercentage: toDecimalOrNull(balanceRearPercentage),
       balanceLeftPercentage: toDecimalOrNull(balanceLeftPercentage),
       balanceRightPercentage: toDecimalOrNull(balanceRightPercentage),
-
-      checklistItems: {
-        createMany: {
-          data: checklistItems ? checklistItems.map(item => ({
-            checklistItemId: item.checklistItemId,
-            status: item.status,
-          })) : [],
-        },
-      },
     };
 
     console.log('ReportsService: Data to create:', dataToCreate);
     try {
       const createdReport = await this.prisma.testeReport.create({ 
         data: dataToCreate,
-        include: {
-          checklistItems: {
-            include: {
-              checklistItem: true,
-            },
-          },
-        },
       });
-      return formatReportWithChecklist(createdReport);
+      return createdReport;
     } catch (error) {
       console.error('ReportsService: Error creating report:', error);
       throw error; // Re-throw the error so NestJS can handle it as a 500
     }
   }
 
-  async findAll() {
-    const reports = await this.prisma.testeReport.findMany({
-      include: {
-        checklistItems: {
-          include: {
-            checklistItem: true,
-          },
-        },
-      },
+  async findAll(): Promise<FormattedReport[]> {
+    const reports = await this.prisma.testeReport.findMany();
+    return reports.map(report => {
+      const formattedReport: FormattedReport = { ...report, horaInicio: null, horaFim: null };
+      if (report.horaInicio instanceof Date) {
+        formattedReport.horaInicio = report.horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      if (report.horaFim instanceof Date) {
+        formattedReport.horaFim = report.horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      return convertDecimalFieldsToNumbers(formattedReport) as FormattedReport;
     });
-    return reports.map(report => formatReportWithChecklist(report));
   }
 
-  async findOne(id: number) {
+  async findOne(id: number): Promise<FormattedReport> {
     const report = await this.prisma.testeReport.findUnique({
       where: { id },
-      include: {
-        checklistItems: {
-          include: {
-            checklistItem: true,
-          },
-        },
-      },
     });
     if (!report) {
       throw new NotFoundException(`Report with ID ${id} not found`);
     }
-    return formatReportWithChecklist(report);
+    const formattedReport: FormattedReport = { ...report, horaInicio: null, horaFim: null };
+    if (report.horaInicio instanceof Date) {
+      formattedReport.horaInicio = report.horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    if (report.horaFim instanceof Date) {
+      formattedReport.horaFim = report.horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    return convertDecimalFieldsToNumbers(formattedReport) as FormattedReport;
   }
 
   async update(id: number, updateReportDto: UpdateReportDto) {
@@ -211,7 +175,6 @@ export class ReportsService {
       carroId,
       usuarioId,
       balanceamentoId,
-      checklistItems,
       dataTeste,
       horaInicio,
       horaFim,
@@ -285,71 +248,53 @@ export class ReportsService {
     if (tamanhoMolaTE !== undefined) dataToUpdate.tamanhoMolaTE = toDecimalOrNull(tamanhoMolaTE);
     if (tamanhoMolaTD !== undefined) dataToUpdate.tamanhoMolaTD = toDecimalOrNull(tamanhoMolaTD);
 
-    if (checklistItems !== undefined) {
-      await this.prisma.reportChecklistItem.deleteMany({
-        where: { reportId: id },
-      });
-      if (checklistItems.length > 0) {
-        dataToUpdate.checklistItems = {
-          createMany: {
-            data: checklistItems.map(item => ({
-              checklistItemId: item.checklistItemId,
-              status: item.status,
-            })),
-          },
-        };
-      }
-    }
-
     const updatedReport = await this.prisma.testeReport.update({
       where: { id },
       data: dataToUpdate,
-      include: {
-        checklistItems: {
-          include: {
-            checklistItem: true,
-          },
-        },
-      },
     });
-    return formatReportWithChecklist(updatedReport);
+    return updatedReport;
   }
 
   remove(id: number) {
     return this.prisma.testeReport.delete({ where: { id } });
   }
 
-  async findByCarroId(carroId: number) {
+  async findByCarroId(carroId: number): Promise<FormattedReport[]> {
     const reports = await this.prisma.testeReport.findMany({
       where: { carroId },
       orderBy: { dataTeste: 'desc' },
-      include: {
-        checklistItems: {
-          include: {
-            checklistItem: true,
-          },
-        },
-      },
     });
-    return reports.map(report => formatReportWithChecklist(report));
+    return reports.map(report => {
+      const formattedReport: FormattedReport = { ...report, horaInicio: null, horaFim: null };
+      if (report.horaInicio instanceof Date) {
+        formattedReport.horaInicio = report.horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      if (report.horaFim instanceof Date) {
+        formattedReport.horaFim = report.horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      return convertDecimalFieldsToNumbers(formattedReport) as FormattedReport;
+    });
   }
 
-  async findLastReport() {
+  async findLastReport(): Promise<FormattedReport | null> {
     const report = await this.prisma.testeReport.findFirst({
       orderBy: [
         { dataTeste: 'desc' },
         { horaFim: 'desc' }
       ], // Order by date, then by end time
-      include: {
-        checklistItems: {
-          include: {
-            checklistItem: true,
-          },
-        },
-      },
     });
+    if (!report) {
+      return null;
+    }
     console.log('ReportsService: Before conversion - report:', report);
-    const convertedReport = report ? formatReportWithChecklist(report) : null;
+    const formattedReport: FormattedReport = { ...report, horaInicio: null, horaFim: null };
+    if (report.horaInicio instanceof Date) {
+      formattedReport.horaInicio = report.horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    if (report.horaFim instanceof Date) {
+      formattedReport.horaFim = report.horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    const convertedReport = convertDecimalFieldsToNumbers(formattedReport) as FormattedReport;
     console.log('ReportsService: After conversion - convertedReport:', convertedReport);
     return convertedReport;
   }
