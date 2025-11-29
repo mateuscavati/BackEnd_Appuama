@@ -10,7 +10,7 @@ import {
 import { ChecklistItemsService } from "./checklist-items.service"
 import { CreateChecklistItemDto } from "./dto/create-checklist-item.dto"
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard"
-import { AdminGuard } from "src/auth/admin.guard"
+import { AdminOrLeaderGuard } from "src/auth/admin-or-leader.guard"
 
 @Controller("checklist-items")
 @UseGuards(JwtAuthGuard) // Protect all routes
@@ -18,7 +18,7 @@ export class ChecklistItemsController {
   constructor(private readonly checklistItemsService: ChecklistItemsService) {}
 
   @Post()
-  @UseGuards(AdminGuard) // Only admins can create checklist items
+  @UseGuards(AdminOrLeaderGuard) // Only admins and leaders can create checklist items
   create(@Body() createChecklistItemDto: CreateChecklistItemDto) {
     return this.checklistItemsService.create(createChecklistItemDto)
   }
@@ -34,7 +34,7 @@ export class ChecklistItemsController {
   }
 
   @Delete(":id")
-  @UseGuards(AdminGuard) // Only admins can remove checklist items
+  @UseGuards(AdminOrLeaderGuard) // Only admins and leaders can remove checklist items
   remove(@Param("id") id: string) {
     return this.checklistItemsService.remove(+id)
   }
