@@ -45,6 +45,15 @@ function convertDecimalFieldsToNumbers(report: any) {
 // Helper function to convert Prisma.Decimal fields to numbers and include formatted checklist items
 function formatReportWithChecklist(report: any): any {
   report = convertDecimalFieldsToNumbers(report); // First, convert decimal fields
+
+  // Format horaInicio and horaFim to HH:MM strings
+  if (report.horaInicio instanceof Date) {
+    report.horaInicio = report.horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  if (report.horaFim instanceof Date) {
+    report.horaFim = report.horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
   if (report.checklistItems && Array.isArray(report.checklistItems)) {
     report.checklistData = report.checklistItems.map(item => ({
       id: item.checklistItem.id.toString(), // Convert number ID to string for frontend
