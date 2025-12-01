@@ -121,7 +121,3 @@ Administrators can use this endpoint to directly create new, pre-approved user a
 The database schema is defined using Prisma. A visual representation (ERD) can be generated from `prisma/schema.prisma`.
 
 You can find a Mermaid ERD code snippet in the `db_model.mermaid` file in the project root, which can be imported into tools like Draw.io for visualization.
-
-## Running Tests
-
-(Add instructions for running backend tests here if applicable)
