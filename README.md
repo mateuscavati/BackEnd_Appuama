@@ -1,123 +1,95 @@
-# BackEnd_Appuama
+# Formula SAE App - Backend
 
-This directory contains the backend API for the Formula SAE project, built with NestJS.
+Este é o diretório do backend do projeto Formula SAE App, uma API desenvolvida com NestJS para o gerenciamento de dados da equipe Apuama Racing.
 
-## Project Structure
+## Visão Geral
 
-- `api/BackEnd_Appuama/`: This is the current directory, containing the NestJS backend API.
-- `frontend-apuama/`: Contains the Next.js frontend application.
+O backend é responsável por toda a lógica de negócio da aplicação, incluindo:
 
-## Technologies Used
+-   Gerenciamento de usuários e autenticação.
+-   Cadastro e gerenciamento de carros.
+-   Armazenamento e recuperação de dados de balanceamento.
+-   Criação e consulta de relatórios de testes.
+-   Gerenciamento de itens de checklist.
 
-### Backend (api/BackEnd_Appuama/)
+## Arquitetura e Tecnologias
 
--   NestJS (TypeScript)
--   Prisma (ORM)
--   PostgreSQL (Database)
--   JWT for Authentication
+A API foi construída utilizando uma arquitetura modular para garantir a separação de responsabilidades e facilitar a manutenção.
 
-## Setup Instructions (Local Development with Docker Compose)
+-   **Framework**: [NestJS](https://nestjs.com/) (TypeScript)
+-   **ORM**: [Prisma](https://www.prisma.io/) para interação com o banco de dados.
+-   **Banco de Dados**: [PostgreSQL](https://www.postgresql.org/).
+-   **Autenticação**: Baseada em [JSON Web Tokens (JWT)](https://jwt.io/).
+-   **Documentação da API**: [Swagger](https://swagger.io/) (OpenAPI) para visualização e teste dos endpoints.
 
-To set up and run the backend locally using Docker Compose (alongside the database and frontend):
+## Como Executar o Projeto
 
-1.  Navigate to the root directory of the monorepo (`formula-sae-app`).
-2.  Ensure Docker is running on your machine.
-3.  Run `docker compose build` to build all service images.
-4.  Run `docker compose up -d` to start all services in detached mode.
+A forma mais simples de executar o backend, juntamente com o frontend e o banco de dados, é utilizando o Docker.
 
-The backend API will typically be accessible at `http://localhost:3000/api`.
+1.  **Pré-requisitos**:
+    -   [Docker](https://docs.docker.com/get-docker/) instalado.
+    -   [Docker Compose](https://docs.docker.com/compose/install/) instalado.
 
-## API Endpoints
+2.  **Passos**:
+    1.  Navegue até a raiz do projeto (`formula-sae-app`).
+    2.  Execute o comando abaixo para construir as imagens e iniciar os contêineres:
+        ```bash
+        docker-compose up -d
+        ```
 
-Below is a summary of key API endpoints. For detailed request/response structures, please refer to the DTOs and OpenAPI documentation (if generated).
+O backend estará acessível em `http://localhost:3001`. A documentação interativa da API (Swagger) pode ser acessada em `http://localhost:3001/api`.
 
-### 1. Authentication (`/auth`)
--   `POST /auth/login`: User login.
--   `POST /auth/signup`: User registration (initial unapproved state).
+## Estrutura dos Módulos
 
-### 2. Users (`/users`)
--   `POST /users`: Create a new user (admin can use this to create approved users).
--   `GET /users`: Retrieve all users (Admin only).
--   `PATCH /users/:id`: Update user details, including approval status (Admin only).
--   `DELETE /users/:id`: Delete a user (Admin only).
+O backend está organizado nos seguintes módulos principais:
 
-### 3. Cars (`/cars`)
--   `POST /cars`: Add a new car.
--   `GET /cars`: Retrieve all cars.
--   `DELETE /cars/:id`: Remove a car.
+-   `AuthModule`: Cuida da autenticação (login e registro).
+-   `UsersModule`: Gerenciamento completo de usuários (CRUD).
+-   `CarsModule`: Gerenciamento dos carros da equipe.
+-   `BalanceModule`: Armazenamento de dados de balanceamento dos carros.
+-   `ReportsModule`: Gerenciamento dos relatórios de testes.
+-   `ChecklistItemsModule`: Gerenciamento dos itens de checklist para os testes.
 
-### 4. Balance (`/balance`)
--   `POST /balance`: Save new balance data for a car.
--   `GET /balance/last/:carroId`: Get the latest balance data for a specific car.
+## Endpoints da API
 
-### 5. Reports (`/reports`)
--   `POST /reports`: Create a new test report.
--   `GET /reports`: Retrieve all reports.
--   `GET /reports/car/:carroId`: Retrieve reports for a specific car.
--   `GET /reports/last`: Get the absolute latest report.
--   `DELETE /reports/:id`: Remove a report.
+A seguir, um resumo dos principais endpoints disponíveis.
 
-### 6. Checklist Items (`/checklist-items`)
--   `POST /checklist-items`: Add a new checklist item.
--   `GET /checklist-items`: Retrieve all checklist items.
--   `DELETE /checklist-items/:id`: Remove a checklist item.
+### Autenticação (`/auth`)
 
-## User Registration
+-   `POST /auth/login`: Realiza o login do usuário e retorna um token JWT.
+-   `POST /auth/signup`: Permite que um novo usuário se registre (fica pendente de aprovação).
 
-The user registration functionality is handled by the `/users` and `/auth/signup` endpoints.
+### Usuários (`/users`)
 
-### POST `/auth/signup` (For new users requesting access)
+-   `GET /users`: Retorna todos os usuários (requer permissão de administrador).
+-   `POST /users`: Cria um novo usuário (requer permissão de administrador).
+-   `PATCH /users/:id`: Atualiza os dados de um usuário, incluindo status de aprovação.
+-   `DELETE /users/:id`: Remove um usuário (requer permissão de administrador).
 
-This endpoint allows new individuals to register, typically entering an unapproved state awaiting administrator review.
+### Carros (`/cars`)
 
-**Request Body:**
+-   `GET /cars`: Retorna todos os carros cadastrados.
+-   `POST /cars`: Adiciona um novo carro.
+-   `DELETE /cars/:id`: Remove um carro.
 
-```json
-{
-  "email": "novo.usuario@example.com",
-  "fullName": "Novo Usuário",
-  "matricula": "12345",
-  "role": "membro", // "trainee", "membro", or "lider"
-  "password": "umaSenhaForte123"
-}
-```
+### Balanceamento (`/balance`)
 
-**Fields:**
-- `email`: (string, required) The user's email address. Must be unique.
-- `fullName`: (string, required) The full name of the user.
-- `matricula`: (string, required) The user's unique academic or team registration number.
-- `role`: (string, required) The user's role in the team (`"trainee"`, `"membro"`, or `"lider"`).
-- `password`: (string, required) The user's password.
+-   `POST /balance`: Salva novos dados de balanceamento para um carro.
+-   `GET /balance/last/:carroId`: Obtém os últimos dados de balanceamento de um carro específico.
 
-### POST `/users` (For Admin to create approved users)
+### Relatórios (`/reports`)
 
-Administrators can use this endpoint to directly create new, pre-approved user accounts.
+-   `GET /reports`: Retorna todos os relatórios.
+-   `POST /reports`: Cria um novo relatório de teste.
+-   `GET /reports/car/:carroId`: Retorna todos os relatórios de um carro específico.
+-   `DELETE /reports/:id`: Remove um relatório.
 
-**Request Body:**
+### Itens de Checklist (`/checklist-items`)
 
-```json
-{
-  "email": "admin.usuario@example.com",
-  "nomeCompleto": "Admin Usuário",
-  "matricula": "98765",
-  "posicaoEquipe": "admin", // "trainee", "membro", "lider", or "admin"
-  "senhaHash": "umaSenhaMuitoForte456", // Raw password, will be hashed by backend
-  "isAprovado": true,
-  "isAdmin": true
-}
-```
+-   `GET /checklist-items`: Retorna todos os itens de checklist.
+-   `POST /checklist-items`: Adiciona um novo item de checklist.
+-   `DELETE /checklist-items/:id`: Remove um item de checklist.
 
-**Fields:**
-- `email`: (string, required) The user's email address. Must be unique.
-- `nomeCompleto`: (string, required) The full name of the user.
-- `matricula`: (string, required) The user's unique academic or team registration number.
-- `posicaoEquipe`: (string, required) The user's role in the team.
-- `senhaHash`: (string, required) The raw password for the user. The backend will hash this.
-- `isAprovado`: (boolean, optional, default `false`) Whether the user is approved.
-- `isAdmin`: (boolean, optional, default `false`) Whether the user has administrator privileges.
+## Modelo do Banco de Dados
 
-## Database Schema (Physical Model)
-
-The database schema is defined using Prisma. A visual representation (ERD) can be generated from `prisma/schema.prisma`.
-
-You can find a Mermaid ERD code snippet in the `db_model.mermaid` file in the project root, which can be imported into tools like Draw.io for visualization.
+O esquema do banco de dados é definido com o Prisma em `prisma/schema.prisma`. Este arquivo é a fonte da verdade para a estrutura de dados da aplicação.
